@@ -33,6 +33,7 @@ static void btn_fxn(uint gpio, uint32_t eventMask) {
     //            Tarkista SDK, ja jos et löydä vastaavaa funktiota, sinun täytyy toteuttaa se itse.
     // Exercise 1: Toggle the LED. 
     //             Check the SDK and if you do not find a function you would need to implement it yourself. 
+    toggle_led();
 }
 
 static void sensor_task(void *arg){
@@ -159,6 +160,9 @@ int main() {
     //             Interruption handler is defined up as btn_fxn
     // Tehtävä 1:  Alusta painike ja LEd ja rekisteröi vastaava keskeytys.
     //             Keskeytyskäsittelijä on määritelty yläpuolella nimellä btn_fxn
+    init_button1();
+    init_red_led();
+    gpio_set_irq_enabled_with_callback(BUTTON1, GPIO_IRQ_EDGE_RISE, true, btn_fxn);
 
 
 

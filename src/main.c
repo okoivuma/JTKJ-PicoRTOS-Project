@@ -11,9 +11,13 @@
 
 #define DEFAULT_STACK_SIZE  2048
 
+// Prototypes of the tasks
 void sensortask(void *args);
 void print_task(void *args);
 void button_task(void *args);
+void button_fxn(uint gpio, uint32_t events);
+
+
 enum state { 
     STATE_IDLE,
     STATE_RUNNING,
@@ -21,14 +25,13 @@ enum state {
     STATE_ERROR
 };
 
-enum state programState = STATE_IDLE;
-
 enum orientation {
     pysty,
     vaaka,
     kylki
 };
 
+enum state programState = STATE_IDLE;
 enum orientation currentOrientation = pysty;
 bool lahetys = false;
 
@@ -60,18 +63,18 @@ int main() {
                 2,                  // (en) Priority of this task
                 &printTask);    // (en) A handle to control the execution of this task
 
-    //init_button1();
-    //gpio_set_irq_callback(BUTTON1, GPIO_IRQ_EDGE_FALL, true, button_task);
-
+    init_button1();
+    gpio_set_irq_enabled_with_callback(BUTTON1, GPIO_IRQ_EDGE_RISE, true, button_fxn);
+        /*
     BaseType_t result3 = xTaskCreate(button_task,       // (en) Task
                 "button",              // (en) Name of the task 
                 DEFAULT_STACK_SIZE, // (en) Size of the stack for this task (in words). Generally 1024 or 2048
                 NULL,               // (en) Arguments of the task 
                 2,                  // (en) Priority of this task
-                &buttonTask);    // (en) A handle to control the execution of this task
+                &buttonTask);    // (en) A handle to control the execution of this task*/
 
-    if(result != pdPASS) {
-        printf("Example Task creation failed\n");
+    if(result != pdPASS || result2 != pdPASS) {
+        printf("Task creation failed\n");
         return 0;
     }
 
@@ -135,6 +138,10 @@ void button_task(void *args){
         vTaskDelay(pdMS_TO_TICKS(10));
     }
    //lahetys = true;
+}
+
+void button_fxn(uint gpio, uint32_t events){
+    lahetys = true;
 }
 
 void print_task(void *args){

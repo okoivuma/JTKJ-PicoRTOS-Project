@@ -1,17 +1,18 @@
 
 #include <stdio.h>
-#include <string.h>
+//#include <string.h>
 #include <pico/stdlib.h>
 #include <FreeRTOS.h>
-#include <queue.h>
+//#include <queue.h>
 #include <task.h>
 #include "tkjhat/sdk.h"
-
+#include <math.h>
 /*
 ** Pittää muistaa kommentoija funktiot
 */
 #define DEFAULT_STACK_SIZE  2048
-
+#define MESSAGE_BUFFER_SIZE 256
+#define IMU_THRESHOLD 0.8f
 
 // Prototypes of the tasks and functions
 void sensortask(void *args);
@@ -26,27 +27,27 @@ enum state {
     
     STATE_ERROR
 };
-
+// Machine orientation variables
 enum orientation {
-    // nämä vois kääntää lontooksi
-    pysty,
-    vaaka,
-    kylki
+    VERTICAL,
+    HORIZONTAL,
+    SIDE
 };
 
 enum state programState = STATE_IDLE;
-enum orientation currentOrientation = pysty;
-bool button_pressed = false;
-char morse_message[1024] = "";
-int morse_index = 0;
-bool STATE_end_message = false;
+enum orientation currentOrientation = VERTICAL;
+bool button1_pressed = false;
+bool button2_pressed = false;
+char morse_message[MESSAGE_BUFFER_SIZE] = "";
+uint8_t morse_index = 0;
+
 
 int main() {
     stdio_init_all();
     // Uncomment this lines if you want to wait till the serial monitor is connected
-    while (!stdio_usb_connected()){
-        sleep_ms(10);
-    }
+    //while (!stdio_usb_connected()){
+    //    sleep_ms(10);
+    //}
     init_hat_sdk();
     sleep_ms(300); //Wait some time so initialization of USB and hat is done.
     
@@ -90,11 +91,11 @@ int main() {
 }
 
 void sensortask(void *args){
-    
-    init_i2c_default();
+    (void) args;
+    //init_i2c_default();
 
     if (init_ICM42670() != 0) {
-        printf("__Failed to initialize ICM-42670P.\n__");
+        printf("__Failed to initialize IMU sensor\n__");
         vTaskDelete(NULL);
         return;
     }
@@ -113,14 +114,14 @@ void sensortask(void *args){
 
             //printf("Accel: X=%f, Y=%f, Z=%f \n", ax, ay, az);
             // vois olla vaikka abs ja arvot vois pistää vakioiksi
-            if (az > 0.8 || az < -0.8) {
-                currentOrientation = vaaka;
+            if (fabs(az) > IMU_THRESHOLD) {
+                currentOrientation = HORIZONTAL;
                 programState = STATE_orientation_changed;
-            } else if (ay > 0.8 || ay < -0.8) {
-                currentOrientation = pysty;
+            } else if (fabs(ay) > IMU_THRESHOLD) {
+                currentOrientation = VERTICAL;
                 programState = STATE_orientation_changed;
-            } else if (ax > 0.8 || ax < -0.8) {
-                currentOrientation = kylki;
+            } else if (fabs(ax) > IMU_THRESHOLD) {
+                currentOrientation = SIDE;
                 programState = STATE_orientation_changed;
             }
 
@@ -134,37 +135,35 @@ void sensortask(void *args){
 
 void button_fxn(uint gpio, uint32_t events){
     if (gpio == BUTTON1) {
-        button_pressed = true;
+        button1_pressed = true;
         toggle_led();
     } else if (gpio == BUTTON2) {
-        STATE_end_message = true;
-        button_pressed = true;
+        button2_pressed = true;
+        button1_pressed = true;
     }
-    
-    // kikkailee ledin jos jaksaa/ehtii
 }
 
 void print_task(void *args){
-    
+    (void) args;
+
     for(;;){
-        if (programState == STATE_orientation_changed && button_pressed && !STATE_end_message) {
-            if (currentOrientation == pysty) {
+        if (programState == STATE_orientation_changed && button1_pressed && !button2_pressed) {
+            if (currentOrientation == VERTICAL) {
                 //printf("__.__");
                 morse_message[morse_index++] = '.';
-            } else if (currentOrientation == vaaka) {
+            } else if (currentOrientation == HORIZONTAL) {
                 //printf("__-__");
                 morse_message[morse_index++] = '-';
-            } else if (currentOrientation == kylki) {
+            } else if (currentOrientation == SIDE) {
                 //printf("__ __");
                 morse_message[morse_index++] = ' ';
             } else {
             printf("Orientation: Unknown\n");
             }   
-            button_pressed = false;
+            button1_pressed = false;
             programState = STATE_RUNNING;
             toggle_led();
-        } else if (STATE_end_message) {
-            printf("  \n");
+        } else if (button2_pressed) {
             morse_message[morse_index++] = ' ';
             morse_message[morse_index++] = ' '; 
             morse_message[morse_index++] = '\n';
@@ -174,8 +173,8 @@ void print_task(void *args){
             }
             morse_index = 0;
             morse_message[0] = '\0';
-            button_pressed = false;
-            STATE_end_message = false;
+            button1_pressed = false;
+            button2_pressed = false;
             programState = STATE_RUNNING;
         }
         vTaskDelay(pdMS_TO_TICKS(200));

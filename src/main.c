@@ -29,7 +29,7 @@ bool button1_pressed = false;   // flag for button 1 press
 bool button2_pressed = false;   // flag for button 2 press
 enum orientation currentOrientation = VERTICAL;
 char morse_message[MESSAGE_BUFFER_SIZE] = "";
-uint8_t morse_index = 0;
+int message_index = 0;
 
 
 int main() {
@@ -121,26 +121,32 @@ void print_task(void *args){
     (void) args;
 
     for(;;){
-        if (orientation_ready && button1_pressed && !button2_pressed) {
+        if (orientation_ready && button1_pressed) {
+            // check for buffer overflow
+            if (message_index >= MESSAGE_BUFFER_SIZE - 4) {
+                printf("__Message buffer full. Please press button 2 to send message__\n");
+                button1_pressed = false;
+            }
+
             if (currentOrientation == VERTICAL) {
-                morse_message[morse_index++] = '.';
+                morse_message[message_index++] = '.';
             } else if (currentOrientation == HORIZONTAL) {
-                morse_message[morse_index++] = '-';
+                morse_message[message_index++] = '-';
             } else if (currentOrientation == SIDE) {
-                morse_message[morse_index++] = ' ';
+                morse_message[message_index++] = ' ';
             }
             button1_pressed = false;
             orientation_ready = false;
             blink_led(1);
         } else if (button2_pressed) {
-            morse_message[morse_index++] = ' ';
-            morse_message[morse_index++] = ' '; 
-            morse_message[morse_index++] = '\n';
-            morse_message[morse_index] = '\0'; 
-            for (int i = 0; i < morse_index; i++) {
+            morse_message[message_index++] = ' ';
+            morse_message[message_index++] = ' '; 
+            morse_message[message_index++] = '\n';
+            morse_message[message_index] = '\0'; 
+            for (int i = 0; i < message_index; i++) {
                 printf("%c", morse_message[i]);
             }
-            morse_index = 0;
+            message_index = 0;
             morse_message[0] = '\0';
             button1_pressed = false;
             button2_pressed = false;

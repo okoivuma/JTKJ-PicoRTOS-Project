@@ -12,6 +12,7 @@
 */
 #define DEFAULT_STACK_SIZE  2048
 
+
 // Prototypes of the tasks
 void sensortask(void *args);
 void print_task(void *args);
@@ -23,6 +24,7 @@ enum state {
     STATE_IDLE,
     STATE_RUNNING,
     STATE_orientation_changed,
+    
     STATE_ERROR
 };
 
@@ -36,7 +38,9 @@ enum orientation {
 enum state programState = STATE_IDLE;
 enum orientation currentOrientation = pysty;
 bool button_pressed = false;
-
+char morse_message[1024];
+int morse_index = 0;
+bool STATE_end_message = false;
 
 int main() {
     stdio_init_all();
@@ -48,7 +52,9 @@ int main() {
     sleep_ms(300); //Wait some time so initialization of USB and hat is done.
     
     init_button1();
+    init_button2();
     gpio_set_irq_enabled_with_callback(BUTTON1, GPIO_IRQ_EDGE_RISE, true, button_fxn);
+    gpio_set_irq_enabled_with_callback(BUTTON2, GPIO_IRQ_EDGE_RISE, true, button_fxn);
 
     programState = STATE_RUNNING;
     TaskHandle_t sensorTask = NULL;
@@ -117,16 +123,21 @@ void sensortask(void *args){
             }
 
         } else {
-            printf("Failed to read imu data\n"); // miksi tämä tulee välillä?
-            // State error?
-            // Delete task?
+            //printf("Failed to read imu data, please put machine to known state\n"); // miksi tämä tulee välillä?
+            programState = STATE_ERROR;
         }
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 
 void button_fxn(uint gpio, uint32_t events){
-    button_pressed = true;
+    if (gpio == BUTTON1) {
+        button_pressed = true;
+    } else if (gpio == BUTTON2) {
+        STATE_end_message = true;
+        button_pressed = true;
+    }
+    
     // kikkailee ledin jos jaksaa/ehtii
 }
 
@@ -136,19 +147,36 @@ void print_task(void *args){
     ** SERIAL COMMUNICATION!
     */
     for(;;){
-        vTaskDelay(pdMS_TO_TICKS(50));
-        if (programState == STATE_orientation_changed && button_pressed) {
+        if (programState == STATE_orientation_changed && button_pressed && !STATE_end_message) {
             if (currentOrientation == pysty) {
             printf(".");
+            morse_message[morse_index++] = '.';
             } else if (currentOrientation == vaaka) {
                 printf("-");
+                morse_message[morse_index++] = '-';
             } else if (currentOrientation == kylki) {
                 printf(" ");
+                morse_message[morse_index++] = ' ';
             } else {
             printf("Orientation: Unknown\n");
             }   
             button_pressed = false;
             programState = STATE_RUNNING;
+        } else if (STATE_end_message) {
+            printf("  \n");
+            morse_message[morse_index++] = ' ';
+            morse_message[morse_index++] = ' '; 
+            morse_message[morse_index++] = '\n';
+            morse_message[morse_index] = NULL; //tähän jää
+            for (int i = 0; i < morse_index; i++) {
+                printf("%c", morse_message[i]);
+            }
+            morse_index = 0;
+            morse_message[0] = '\0';
+            button_pressed = false;
+            STATE_end_message = false;
+            programState = STATE_RUNNING;
         }
+        vTaskDelay(pdMS_TO_TICKS(200));
     }
 }

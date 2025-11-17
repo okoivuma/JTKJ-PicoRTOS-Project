@@ -94,10 +94,10 @@ add_subdirectory(libs/usb-serial-debug)
 # add_subdirectory(examples/compilation_errors)
 add_subdirectory(examples/hello_hat)
 # add_subdirectory(examples/hat_example)
-add_subdirectory(examples/hat_imu_ex)
-add_subdirectory(examples/hat_imu_cdc_ex)
+#add_subdirectory(examples/hat_imu_ex)
+#add_subdirectory(examples/hat_imu_cdc_ex)
 add_subdirectory(examples/hello_serial_client)
-add_subdirectory(examples/hello_serial_bidirectional_client)
+#add_subdirectory(examples/hello_serial_bidirectional_client)
 #
 # You can edit it if you want to add new examples
 # ==============================================================================================
@@ -137,6 +137,8 @@ endif()
 #Support for stdio (printf, fwrite, puts...) via usb or UART. 
 pico_enable_stdio_usb(${MAIN_TARGET} 1)
 pico_enable_stdio_uart(${MAIN_TARGET} 0)
+
+
 
 # Create different output files: 
 # .elf -> Executable with debug info (for GDB)  

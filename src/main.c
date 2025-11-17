@@ -13,10 +13,9 @@
 #define DEFAULT_STACK_SIZE  2048
 
 
-// Prototypes of the tasks
+// Prototypes of the tasks and functions
 void sensortask(void *args);
 void print_task(void *args);
-void button_task(void *args);
 void button_fxn(uint gpio, uint32_t events);
 
 
@@ -38,7 +37,7 @@ enum orientation {
 enum state programState = STATE_IDLE;
 enum orientation currentOrientation = pysty;
 bool button_pressed = false;
-char morse_message[1024];
+char morse_message[1024] = "";
 int morse_index = 0;
 bool STATE_end_message = false;
 
@@ -53,6 +52,9 @@ int main() {
     
     init_button1();
     init_button2();
+
+    init_led();
+    
     gpio_set_irq_enabled_with_callback(BUTTON1, GPIO_IRQ_EDGE_RISE, true, button_fxn);
     gpio_set_irq_enabled_with_callback(BUTTON2, GPIO_IRQ_EDGE_RISE, true, button_fxn);
 
@@ -76,7 +78,7 @@ int main() {
                 &printTask);    // (en) A handle to control the execution of this task
 
     if(result != pdPASS || result2 != pdPASS) {
-        printf("Task creation failed\n");
+        printf("__Task creation failed\n__");
         return 0;
     }
 
@@ -92,18 +94,18 @@ void sensortask(void *args){
     init_i2c_default();
 
     if (init_ICM42670() != 0) {
-        printf("Failed to initialize ICM-42670P.\n");
+        printf("__Failed to initialize ICM-42670P.\n__");
         vTaskDelete(NULL);
         return;
     }
 
     if (ICM42670_start_with_default_values() != 0){
-        printf("ICM-42670P could not initialize accelerometer or gyroscope\n");
+        printf("__ICM-42670P could not initialize accelerometer or gyroscope\n__");
         vTaskDelete(NULL);
         return;
     }
 
-    printf("IMU initialized\n");
+    printf("__IMU initialized__\n");
     
     for (;;) {
         float ax, ay, az, gx, gy, gz, temp;
@@ -133,6 +135,7 @@ void sensortask(void *args){
 void button_fxn(uint gpio, uint32_t events){
     if (gpio == BUTTON1) {
         button_pressed = true;
+        toggle_led();
     } else if (gpio == BUTTON2) {
         STATE_end_message = true;
         button_pressed = true;
@@ -142,32 +145,30 @@ void button_fxn(uint gpio, uint32_t events){
 }
 
 void print_task(void *args){
-    /*
-    ** TODO:
-    ** SERIAL COMMUNICATION!
-    */
+    
     for(;;){
         if (programState == STATE_orientation_changed && button_pressed && !STATE_end_message) {
             if (currentOrientation == pysty) {
-            printf(".");
-            morse_message[morse_index++] = '.';
+                //printf("__.__");
+                morse_message[morse_index++] = '.';
             } else if (currentOrientation == vaaka) {
-                printf("-");
+                //printf("__-__");
                 morse_message[morse_index++] = '-';
             } else if (currentOrientation == kylki) {
-                printf(" ");
+                //printf("__ __");
                 morse_message[morse_index++] = ' ';
             } else {
             printf("Orientation: Unknown\n");
             }   
             button_pressed = false;
             programState = STATE_RUNNING;
+            toggle_led();
         } else if (STATE_end_message) {
             printf("  \n");
             morse_message[morse_index++] = ' ';
             morse_message[morse_index++] = ' '; 
             morse_message[morse_index++] = '\n';
-            morse_message[morse_index] = NULL; //tähän jää
+            morse_message[morse_index] = '\0'; 
             for (int i = 0; i < morse_index; i++) {
                 printf("%c", morse_message[i]);
             }
